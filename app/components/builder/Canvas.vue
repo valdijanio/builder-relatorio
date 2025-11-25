@@ -20,7 +20,7 @@
       />
 
       <!-- Elements -->
-      <CanvasElement
+      <BuilderCanvasElement
         v-for="element in elements"
         :key="element.id"
         :element="element"
