@@ -9,7 +9,7 @@
           <label class="label">Dataset</label>
           <select
             class="input"
-            :value="element.dataBinding.datasetId"
+            :value="element.dataBinding?.datasetId"
             @change="updateDataBinding('datasetId', ($event.target as HTMLSelectElement).value)"
           >
             <option value="">Selecione um dataset...</option>
@@ -27,7 +27,7 @@
         </div>
 
         <!-- Options when dataset is selected -->
-        <template v-if="element.dataBinding.datasetId">
+        <template v-if="element.dataBinding?.datasetId">
           <div>
             <label class="label">Limite de registros</label>
             <input
@@ -35,7 +35,7 @@
               class="input"
               min="1"
               max="1000"
-              :value="element.dataBinding.limit"
+              :value="element.dataBinding?.limit"
               @input="updateDataBinding('limit', parseInt(($event.target as HTMLInputElement).value) || 100)"
             />
           </div>
@@ -43,10 +43,10 @@
           <!-- Execute Dataset Button -->
           <button
             class="btn-secondary text-sm w-full flex items-center justify-center gap-2"
-            :disabled="isDatasetLoading(element.dataBinding.datasetId)"
-            @click="executeDataset(element.dataBinding.datasetId)"
+            :disabled="isDatasetLoading(element.dataBinding?.datasetId)"
+            @click="executeDataset(element.dataBinding?.datasetId)"
           >
-            <span v-if="isDatasetLoading(element.dataBinding.datasetId)" class="animate-spin">⏳</span>
+            <span v-if="isDatasetLoading(element.dataBinding?.datasetId)" class="animate-spin">⏳</span>
             <span v-else>▶</span>
             Atualizar Dados
           </button>
@@ -233,19 +233,19 @@ const {
 
 // Available fields from selected dataset
 const availableFields = computed(() => {
-  if (!props.element.dataBinding.datasetId) return []
+  if (!props.element.dataBinding?.datasetId) return []
   return getDatasetFields(props.element.dataBinding.datasetId)
 })
 
 // Data from selected dataset
 const datasetData = computed(() => {
-  if (!props.element.dataBinding.datasetId) return []
+  if (!props.element.dataBinding?.datasetId) return []
   return getDatasetData(props.element.dataBinding.datasetId)
 })
 
 // Auto-load dataset when selected
 watch(
-  () => props.element.dataBinding.datasetId,
+  () => props.element.dataBinding?.datasetId,
   async (newId) => {
     if (newId && getDatasetData(newId).length === 0) {
       await executeDataset(newId)
@@ -266,7 +266,9 @@ const updateProperty = (key: keyof ListElement['properties'], value: any) => {
 const updateDataBinding = (key: string, value: any) => {
   emit('update', {
     dataBinding: {
-      ...props.element.dataBinding,
+      datasetId: props.element.dataBinding?.datasetId || '',
+      orderBy: props.element.dataBinding?.orderBy,
+      limit: props.element.dataBinding?.limit || 100,
       [key]: value,
     },
   })

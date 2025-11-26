@@ -28,7 +28,7 @@
           <label class="label">Dataset</label>
           <select
             class="input"
-            :value="element.dataBinding.datasetId"
+            :value="element.dataBinding?.datasetId"
             @change="updateDataBinding('datasetId', ($event.target as HTMLSelectElement).value)"
           >
             <option value="">Selecione um dataset...</option>
@@ -46,20 +46,20 @@
         </div>
 
         <!-- Field Selection (only if dataset selected) -->
-        <template v-if="element.dataBinding.datasetId">
+        <template v-if="element.dataBinding?.datasetId">
           <!-- Loading State -->
-          <div v-if="isDatasetLoading(element.dataBinding.datasetId)" class="text-center py-4 text-text-muted">
+          <div v-if="isDatasetLoading(element.dataBinding?.datasetId)" class="text-center py-4 text-text-muted">
             <span class="animate-spin inline-block">⏳</span>
             Carregando campos...
           </div>
 
           <!-- Error State -->
           <div
-            v-else-if="getDatasetError(element.dataBinding.datasetId)"
+            v-else-if="getDatasetError(element.dataBinding?.datasetId)"
             class="p-3 bg-red-50 border border-red-200 rounded text-sm"
           >
-            <div class="text-status-error">{{ getDatasetError(element.dataBinding.datasetId) }}</div>
-            <button class="btn-secondary text-xs mt-2" @click="executeDataset(element.dataBinding.datasetId)">
+            <div class="text-status-error">{{ getDatasetError(element.dataBinding?.datasetId) }}</div>
+            <button class="btn-secondary text-xs mt-2" @click="executeDataset(element.dataBinding?.datasetId)">
               Tentar novamente
             </button>
           </div>
@@ -71,7 +71,7 @@
               <label class="label">Campo de Label (eixo X / fatias)</label>
               <select
                 class="input"
-                :value="element.dataBinding.labelField"
+                :value="element.dataBinding?.labelField"
                 @change="updateDataBinding('labelField', ($event.target as HTMLSelectElement).value)"
               >
                 <option value="">Selecione...</option>
@@ -90,7 +90,7 @@
               <label class="label">Campos de Valor</label>
               <div class="space-y-2">
                 <div
-                  v-for="(field, index) in element.dataBinding.valueFields"
+                  v-for="(field, index) in element.dataBinding?.valueFields || []"
                   :key="index"
                   class="flex items-center gap-2"
                 >
@@ -133,10 +133,10 @@
           <!-- Execute Dataset Button -->
           <button
             class="btn-secondary text-sm w-full flex items-center justify-center gap-2"
-            :disabled="isDatasetLoading(element.dataBinding.datasetId)"
-            @click="executeDataset(element.dataBinding.datasetId)"
+            :disabled="isDatasetLoading(element.dataBinding?.datasetId)"
+            @click="executeDataset(element.dataBinding?.datasetId)"
           >
-            <span v-if="isDatasetLoading(element.dataBinding.datasetId)" class="animate-spin">⏳</span>
+            <span v-if="isDatasetLoading(element.dataBinding?.datasetId)" class="animate-spin">⏳</span>
             <span v-else>▶</span>
             Atualizar Dados
           </button>
@@ -242,19 +242,19 @@ const {
 
 // Available fields from selected dataset
 const availableFields = computed(() => {
-  if (!props.element.dataBinding.datasetId) return []
+  if (!props.element.dataBinding?.datasetId) return []
   return getDatasetFields(props.element.dataBinding.datasetId)
 })
 
 // Data from selected dataset
 const datasetData = computed(() => {
-  if (!props.element.dataBinding.datasetId) return []
+  if (!props.element.dataBinding?.datasetId) return []
   return getDatasetData(props.element.dataBinding.datasetId)
 })
 
 // Auto-load dataset when selected
 watch(
-  () => props.element.dataBinding.datasetId,
+  () => props.element.dataBinding?.datasetId,
   async (newId) => {
     if (newId && getDatasetData(newId).length === 0) {
       await executeDataset(newId)
@@ -280,40 +280,49 @@ const updateProperty = (key: keyof ChartElement['properties'], value: any) => {
   })
 }
 
+const getDataBinding = () => ({
+  datasetId: props.element.dataBinding?.datasetId || '',
+  labelField: props.element.dataBinding?.labelField || '',
+  valueFields: props.element.dataBinding?.valueFields || [],
+})
+
 const updateDataBinding = (key: string, value: any) => {
   emit('update', {
     dataBinding: {
-      ...props.element.dataBinding,
+      ...getDataBinding(),
       [key]: value,
     },
   })
 }
 
 const addValueField = () => {
+  const current = getDataBinding()
   emit('update', {
     dataBinding: {
-      ...props.element.dataBinding,
-      valueFields: [...props.element.dataBinding.valueFields, ''],
+      ...current,
+      valueFields: [...current.valueFields, ''],
     },
   })
 }
 
 const updateValueField = (index: number, value: string) => {
-  const newFields = [...props.element.dataBinding.valueFields]
+  const current = getDataBinding()
+  const newFields = [...current.valueFields]
   newFields[index] = value
   emit('update', {
     dataBinding: {
-      ...props.element.dataBinding,
+      ...current,
       valueFields: newFields,
     },
   })
 }
 
 const removeValueField = (index: number) => {
-  const newFields = props.element.dataBinding.valueFields.filter((_, i) => i !== index)
+  const current = getDataBinding()
+  const newFields = current.valueFields.filter((_, i) => i !== index)
   emit('update', {
     dataBinding: {
-      ...props.element.dataBinding,
+      ...current,
       valueFields: newFields,
     },
   })
