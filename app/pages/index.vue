@@ -26,7 +26,7 @@
           v-for="report in reports"
           :key="report.id"
           class="card p-4 hover:shadow-medium transition-shadow cursor-pointer"
-          @click="editReport(report.id)"
+          @click="previewReport(report.id)"
         >
           <div class="flex items-start justify-between">
             <div>
@@ -42,12 +42,20 @@
           </div>
           <div class="mt-4 flex items-center justify-between text-xs text-text-muted">
             <span>Atualizado: {{ formatDate(report.updatedAt) }}</span>
-            <button
-              class="text-status-error hover:underline"
-              @click.stop="deleteReport(report.id)"
-            >
-              Excluir
-            </button>
+            <div class="flex items-center gap-3">
+              <button
+                class="text-accent hover:underline"
+                @click.stop="editReport(report.id)"
+              >
+                Editar
+              </button>
+              <button
+                class="text-status-error hover:underline"
+                @click.stop="deleteReport(report.id)"
+              >
+                Excluir
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -97,6 +105,10 @@ const fetchReports = async () => {
 
 const createNewReport = () => {
   router.push('/reports/new/edit')
+}
+
+const previewReport = (id: number) => {
+  router.push(`/reports/${id}/preview`)
 }
 
 const editReport = (id: number) => {

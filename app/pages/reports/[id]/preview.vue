@@ -3,11 +3,11 @@
     <!-- Header -->
     <header class="h-12 bg-white border-b border-surface-border flex items-center px-4 sticky top-0 z-10">
       <NuxtLink
-        :to="`/reports/${reportId}/edit`"
+        to="/"
         class="flex items-center gap-2 text-text-secondary hover:text-accent transition-colors"
       >
         <span>←</span>
-        <span>Voltar ao Editor</span>
+        <span>Voltar</span>
       </NuxtLink>
 
       <div class="flex-1 text-center">
@@ -16,6 +16,12 @@
       </div>
 
       <div class="flex items-center gap-2">
+        <NuxtLink
+          :to="`/reports/${reportId}/edit`"
+          class="btn-secondary text-sm"
+        >
+          Editar
+        </NuxtLink>
         <button class="btn-secondary text-sm" @click="printReport">
           Imprimir
         </button>
@@ -135,7 +141,12 @@ const loadReport = async () => {
       if (response.success && response.data) {
         reportTitle.value = response.data.title
 
-        const layout = response.data.layout as ReportLayout
+        // Parse layout if it's a string (MySQL pode retornar como string)
+        let layout = response.data.layout
+        if (typeof layout === 'string') {
+          layout = JSON.parse(layout)
+        }
+
         if (layout?.bands?.[0]?.elements) {
           elements.value = layout.bands[0].elements
         }
