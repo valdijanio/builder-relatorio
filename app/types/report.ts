@@ -221,6 +221,11 @@ export const defaultNumberElement: Omit<NumberElement, 'id' | 'position'> = {
     color: '#1f2937',
     textAlign: 'right',
   },
+  dataBinding: {
+    datasetId: '',
+    field: '',
+    aggregation: 'first',
+  },
 }
 
 export const defaultListElement: Omit<ListElement, 'id' | 'position'> = {
