@@ -68,6 +68,9 @@ definePageMeta({
 const route = useRoute()
 const { authFetch } = useAuth()
 
+// Use the same canvas state as the editor
+const { elements: canvasElements } = useCanvas()
+
 const reportId = computed(() => route.params.id as string)
 const reportTitle = ref('Relatório')
 const elements = ref<ReportElement[]>([])
@@ -105,29 +108,41 @@ const getElementComponent = (type: ElementType) => {
 }
 
 const loadReport = async () => {
-  // Check if it's a new report with unsaved data
-  if (reportId.value === 'new') {
-    // Load from canvas state (shared via useState)
-    const canvasElements = useState<ReportElement[]>('canvas-elements')
-    if (canvasElements.value) {
-      elements.value = canvasElements.value
+  // For new reports or when coming from editor, use canvas state directly
+  if (canvasElements.value && canvasElements.value.length > 0) {
+    elements.value = canvasElements.value
+
+    // If it's a saved report, also fetch the title
+    if (reportId.value !== 'new') {
+      try {
+        const response = await authFetch<{ success: boolean; data: any }>(`/api/reports/${reportId.value}`)
+        if (response.success && response.data) {
+          reportTitle.value = response.data.title
+        }
+      } catch (error) {
+        console.error('Error loading report title:', error)
+      }
+    } else {
+      reportTitle.value = 'Novo Relatório'
     }
-    reportTitle.value = 'Novo Relatório'
     return
   }
 
-  try {
-    const response = await authFetch<{ success: boolean; data: any }>(`/api/reports/${reportId.value}`)
-    if (response.success && response.data) {
-      reportTitle.value = response.data.title
+  // Fallback: load from API if canvas is empty (direct URL access)
+  if (reportId.value !== 'new') {
+    try {
+      const response = await authFetch<{ success: boolean; data: any }>(`/api/reports/${reportId.value}`)
+      if (response.success && response.data) {
+        reportTitle.value = response.data.title
 
-      const layout = response.data.layout as ReportLayout
-      if (layout?.bands?.[0]?.elements) {
-        elements.value = layout.bands[0].elements
+        const layout = response.data.layout as ReportLayout
+        if (layout?.bands?.[0]?.elements) {
+          elements.value = layout.bands[0].elements
+        }
       }
+    } catch (error) {
+      console.error('Error loading report:', error)
     }
-  } catch (error) {
-    console.error('Error loading report:', error)
   }
 }
 
