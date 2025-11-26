@@ -1,10 +1,8 @@
 export default defineNuxtRouteMiddleware(async (to) => {
-  const { isAuthenticated, fetchUser, accessToken } = useAuth()
+  const { isAuthenticated, restoreSession, accessToken } = useAuth()
 
-  // Try to restore session if we have a token but no user
-  if (accessToken.value && !isAuthenticated.value) {
-    await fetchUser()
-  }
+  // Try to restore session from localStorage first
+  await restoreSession()
 
   // Redirect to login if not authenticated
   if (!isAuthenticated.value) {

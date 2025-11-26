@@ -45,10 +45,20 @@ const loadReport = async () => {
       reportTitle.value = response.data.title
       reportDescription.value = response.data.description || ''
 
+      // Parse layout if it's a string (MySQL pode retornar como string)
+      let layout = response.data.layout
+      if (typeof layout === 'string') {
+        layout = JSON.parse(layout)
+      }
+
+      console.log('Layout carregado:', layout)
+
       // Load elements from layout
-      const layout = response.data.layout as ReportLayout
       if (layout?.bands?.[0]?.elements) {
+        console.log('Elementos encontrados:', layout.bands[0].elements.length)
         loadElements(layout.bands[0].elements)
+      } else {
+        console.warn('Nenhum elemento encontrado no layout:', layout)
       }
     }
   } catch (error) {
