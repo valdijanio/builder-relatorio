@@ -6,6 +6,7 @@ import {
   TooltipComponent,
   LegendComponent,
   GridComponent,
+  DatasetComponent,
 } from 'echarts/components'
 
 export default defineNuxtPlugin(() => {
@@ -18,5 +19,6 @@ export default defineNuxtPlugin(() => {
     TooltipComponent,
     LegendComponent,
     GridComponent,
+    DatasetComponent,
   ])
 })

@@ -54,7 +54,7 @@
         </tr>
         <tr v-else-if="displayData.length === 0 && !isLoading">
           <td :colspan="visibleColumns.length" class="px-3 py-4 text-center text-text-muted">
-            {{ element.dataSource.sqlQuery ? 'Nenhum dado encontrado' : 'Configure a query SQL' }}
+            {{ element.dataBinding?.datasetId ? 'Nenhum dado encontrado' : 'Selecione um dataset' }}
           </td>
         </tr>
       </tbody>
@@ -70,8 +70,32 @@ const props = defineProps<{
   previewMode?: boolean
 }>()
 
-const { executeQuery, isLoading, error } = useQueryExecutor()
-const queryData = ref<Record<string, unknown>[]>([])
+// Use datasets instead of direct query execution
+const {
+  getDatasetData,
+  isDatasetLoading,
+  getDatasetError,
+  executeDataset,
+} = useDatasets()
+
+// Computed values from dataset
+const datasetData = computed(() => {
+  if (!props.element.dataBinding?.datasetId) return []
+  const data = getDatasetData(props.element.dataBinding.datasetId)
+  // Apply limit if set
+  const limit = props.element.dataBinding?.limit || 100
+  return data.slice(0, limit)
+})
+
+const isLoading = computed(() => {
+  if (!props.element.dataBinding?.datasetId) return false
+  return isDatasetLoading(props.element.dataBinding.datasetId)
+})
+
+const error = computed(() => {
+  if (!props.element.dataBinding?.datasetId) return null
+  return getDatasetError(props.element.dataBinding.datasetId)
+})
 
 const visibleColumns = computed(() =>
   props.element.properties.columns.filter(col => col.visible)
@@ -101,7 +125,7 @@ const formatValue = (value: unknown): string => {
   return String(value)
 }
 
-// Sample data for preview when no query
+// Sample data for preview when no dataset
 const sampleData = computed(() => {
   if (visibleColumns.value.length === 0) return []
   return Array.from({ length: 3 }, (_, i) => {
@@ -115,33 +139,17 @@ const sampleData = computed(() => {
 
 // Use real data if available, otherwise sample data
 const displayData = computed(() => {
-  if (queryData.value.length > 0) return queryData.value
-  if (!props.element.dataSource.sqlQuery) return sampleData.value
+  if (datasetData.value.length > 0) return datasetData.value
+  if (!props.element.dataBinding?.datasetId) return sampleData.value
   return []
 })
 
-// Load data when query changes
-const loadData = async () => {
-  const { sqlQuery } = props.element.dataSource
-  if (!sqlQuery) {
-    queryData.value = []
-    return
-  }
-
-  const result = await executeQuery(sqlQuery)
-  if (result) {
-    queryData.value = result.rows
-  } else {
-    queryData.value = []
-  }
-}
-
-// Watch for changes and reload
+// Auto-load dataset when in preview mode
 watch(
-  () => props.element.dataSource.sqlQuery,
-  () => {
-    if (props.previewMode !== false) {
-      loadData()
+  () => props.element.dataBinding?.datasetId,
+  async (datasetId) => {
+    if (props.previewMode !== false && datasetId && datasetData.value.length === 0) {
+      await executeDataset(datasetId)
     }
   },
   { immediate: true }

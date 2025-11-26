@@ -19,85 +19,128 @@
       </div>
     </div>
 
-    <!-- Data Source -->
+    <!-- Data Binding -->
     <div class="property-group">
       <div class="property-group-title">Fonte de Dados</div>
       <div class="space-y-3">
+        <!-- Dataset Selection -->
         <div>
-          <label class="label">Query SQL</label>
-          <textarea
-            class="input font-mono text-sm"
-            rows="4"
-            placeholder="SELECT categoria, SUM(valor) as total FROM vendas GROUP BY categoria"
-            :value="element.dataSource.sqlQuery"
-            @input="updateDataSource('sqlQuery', ($event.target as HTMLTextAreaElement).value)"
-          />
-        </div>
-        <div>
-          <label class="label">Campo de Label (eixo X)</label>
-          <input
-            type="text"
+          <label class="label">Dataset</label>
+          <select
             class="input"
-            placeholder="categoria"
-            :value="element.dataSource.labelField"
-            @input="updateDataSource('labelField', ($event.target as HTMLInputElement).value)"
-          />
-        </div>
-        <div>
-          <label class="label">Campos de Valor (separados por vírgula)</label>
-          <input
-            type="text"
-            class="input"
-            placeholder="total, quantidade"
-            :value="element.dataSource.valueFields.join(', ')"
-            @input="updateValueFields(($event.target as HTMLInputElement).value)"
-          />
-        </div>
-        <button
-          class="btn-secondary text-sm w-full flex items-center justify-center gap-2"
-          :disabled="isLoading || !element.dataSource.sqlQuery"
-          @click="testQuery"
-        >
-          <span v-if="isLoading" class="animate-spin">⏳</span>
-          <span v-else>▶</span>
-          {{ isLoading ? 'Executando...' : 'Testar Query' }}
-        </button>
-
-        <!-- Query Result Preview -->
-        <div v-if="queryError" class="mt-3 p-3 bg-red-50 border border-red-200 rounded text-sm text-status-error">
-          <div class="font-medium mb-1">Erro na query:</div>
-          <div class="font-mono text-xs">{{ queryError }}</div>
+            :value="element.dataBinding.datasetId"
+            @change="updateDataBinding('datasetId', ($event.target as HTMLSelectElement).value)"
+          >
+            <option value="">Selecione um dataset...</option>
+            <option
+              v-for="ds in datasets"
+              :key="ds.id"
+              :value="ds.id"
+            >
+              {{ ds.name }}
+            </option>
+          </select>
+          <p v-if="datasets.length === 0" class="text-xs text-text-muted mt-1">
+            Crie um dataset na aba "Datasets" primeiro
+          </p>
         </div>
 
-        <div v-if="queryResult && !queryError" class="mt-3 p-3 bg-green-50 border border-green-200 rounded">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-xs text-text-muted">
-              {{ queryResult.rowCount }} registro(s) em {{ queryResult.executionTimeMs }}ms
-            </span>
-            <button class="text-xs text-accent hover:underline" @click="clearResult">
-              Limpar
+        <!-- Field Selection (only if dataset selected) -->
+        <template v-if="element.dataBinding.datasetId">
+          <!-- Loading State -->
+          <div v-if="isDatasetLoading(element.dataBinding.datasetId)" class="text-center py-4 text-text-muted">
+            <span class="animate-spin inline-block">⏳</span>
+            Carregando campos...
+          </div>
+
+          <!-- Error State -->
+          <div
+            v-else-if="getDatasetError(element.dataBinding.datasetId)"
+            class="p-3 bg-red-50 border border-red-200 rounded text-sm"
+          >
+            <div class="text-status-error">{{ getDatasetError(element.dataBinding.datasetId) }}</div>
+            <button class="btn-secondary text-xs mt-2" @click="executeDataset(element.dataBinding.datasetId)">
+              Tentar novamente
             </button>
           </div>
-          <div v-if="queryResult.rows.length > 0" class="text-sm">
-            <div class="font-medium text-text-primary mb-1">Campos disponíveis:</div>
-            <div class="flex flex-wrap gap-1">
-              <span
-                v-for="col in queryResult.columns"
-                :key="col"
-                class="px-2 py-0.5 bg-white rounded border border-surface-border text-xs cursor-pointer hover:border-accent"
-                :class="{
-                  'border-accent bg-accent/10': element.dataSource.labelField === col || element.dataSource.valueFields.includes(col)
-                }"
-                @click="selectField(col)"
+
+          <!-- Fields Selection -->
+          <template v-else>
+            <!-- Label Field -->
+            <div>
+              <label class="label">Campo de Label (eixo X / fatias)</label>
+              <select
+                class="input"
+                :value="element.dataBinding.labelField"
+                @change="updateDataBinding('labelField', ($event.target as HTMLSelectElement).value)"
               >
-                {{ col }}
-              </span>
+                <option value="">Selecione...</option>
+                <option
+                  v-for="field in availableFields"
+                  :key="field"
+                  :value="field"
+                >
+                  {{ field }}
+                </option>
+              </select>
             </div>
-            <div class="text-xs text-text-muted mt-2">
-              Clique para usar como Label (1º) ou Valor (2º+)
+
+            <!-- Value Fields -->
+            <div>
+              <label class="label">Campos de Valor</label>
+              <div class="space-y-2">
+                <div
+                  v-for="(field, index) in element.dataBinding.valueFields"
+                  :key="index"
+                  class="flex items-center gap-2"
+                >
+                  <select
+                    class="input flex-1"
+                    :value="field"
+                    @change="updateValueField(index, ($event.target as HTMLSelectElement).value)"
+                  >
+                    <option value="">Selecione...</option>
+                    <option
+                      v-for="f in availableFields"
+                      :key="f"
+                      :value="f"
+                    >
+                      {{ f }}
+                    </option>
+                  </select>
+                  <button
+                    class="text-status-error hover:text-red-700"
+                    @click="removeValueField(index)"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <button
+                  class="btn-secondary text-xs w-full"
+                  @click="addValueField"
+                >
+                  + Adicionar Campo
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
+
+            <!-- Preview Data Info -->
+            <div v-if="datasetData.length > 0" class="p-2 bg-surface-tertiary rounded text-xs text-text-muted">
+              {{ datasetData.length }} registros disponíveis
+            </div>
+          </template>
+
+          <!-- Execute Dataset Button -->
+          <button
+            class="btn-secondary text-sm w-full flex items-center justify-center gap-2"
+            :disabled="isDatasetLoading(element.dataBinding.datasetId)"
+            @click="executeDataset(element.dataBinding.datasetId)"
+          >
+            <span v-if="isDatasetLoading(element.dataBinding.datasetId)" class="animate-spin">⏳</span>
+            <span v-else>▶</span>
+            Atualizar Dados
+          </button>
+        </template>
       </div>
     </div>
 
@@ -178,7 +221,6 @@
 
 <script setup lang="ts">
 import type { ChartElement } from '~/types/report'
-import type { QueryResult } from '~/types/elements'
 
 const props = defineProps<{
   element: ChartElement
@@ -188,49 +230,38 @@ const emit = defineEmits<{
   update: [updates: Partial<ChartElement>]
 }>()
 
-// Query executor
-const { executeQuery, isLoading, error: queryError } = useQueryExecutor()
-const queryResult = ref<QueryResult | null>(null)
+// Datasets
+const {
+  datasets,
+  getDatasetData,
+  getDatasetFields,
+  isDatasetLoading,
+  getDatasetError,
+  executeDataset,
+} = useDatasets()
 
-const clearResult = () => {
-  queryResult.value = null
-}
+// Available fields from selected dataset
+const availableFields = computed(() => {
+  if (!props.element.dataBinding.datasetId) return []
+  return getDatasetFields(props.element.dataBinding.datasetId)
+})
 
-const testQuery = async () => {
-  if (!props.element.dataSource.sqlQuery) return
-  queryResult.value = null
-  const result = await executeQuery(props.element.dataSource.sqlQuery)
-  if (result) {
-    queryResult.value = result
-  }
-}
+// Data from selected dataset
+const datasetData = computed(() => {
+  if (!props.element.dataBinding.datasetId) return []
+  return getDatasetData(props.element.dataBinding.datasetId)
+})
 
-const selectField = (field: string) => {
-  // Se não tem labelField, define como label
-  if (!props.element.dataSource.labelField) {
-    updateDataSource('labelField', field)
-  } else if (props.element.dataSource.labelField === field) {
-    // Se clicar no label atual, remove
-    updateDataSource('labelField', '')
-  } else if (props.element.dataSource.valueFields.includes(field)) {
-    // Se já está nos valores, remove
-    const newFields = props.element.dataSource.valueFields.filter(f => f !== field)
-    emit('update', {
-      dataSource: {
-        ...props.element.dataSource,
-        valueFields: newFields,
-      },
-    })
-  } else {
-    // Adiciona aos valores
-    emit('update', {
-      dataSource: {
-        ...props.element.dataSource,
-        valueFields: [...props.element.dataSource.valueFields, field],
-      },
-    })
-  }
-}
+// Auto-load dataset when selected
+watch(
+  () => props.element.dataBinding.datasetId,
+  async (newId) => {
+    if (newId && getDatasetData(newId).length === 0) {
+      await executeDataset(newId)
+    }
+  },
+  { immediate: true }
+)
 
 const chartTypes = [
   { value: 'bar', label: 'Barras', icon: '📊' },
@@ -249,21 +280,41 @@ const updateProperty = (key: keyof ChartElement['properties'], value: any) => {
   })
 }
 
-const updateDataSource = (key: string, value: any) => {
+const updateDataBinding = (key: string, value: any) => {
   emit('update', {
-    dataSource: {
-      ...props.element.dataSource,
+    dataBinding: {
+      ...props.element.dataBinding,
       [key]: value,
     },
   })
 }
 
-const updateValueFields = (value: string) => {
-  const fields = value.split(',').map(f => f.trim()).filter(Boolean)
+const addValueField = () => {
   emit('update', {
-    dataSource: {
-      ...props.element.dataSource,
-      valueFields: fields,
+    dataBinding: {
+      ...props.element.dataBinding,
+      valueFields: [...props.element.dataBinding.valueFields, ''],
+    },
+  })
+}
+
+const updateValueField = (index: number, value: string) => {
+  const newFields = [...props.element.dataBinding.valueFields]
+  newFields[index] = value
+  emit('update', {
+    dataBinding: {
+      ...props.element.dataBinding,
+      valueFields: newFields,
+    },
+  })
+}
+
+const removeValueField = (index: number) => {
+  const newFields = props.element.dataBinding.valueFields.filter((_, i) => i !== index)
+  emit('update', {
+    dataBinding: {
+      ...props.element.dataBinding,
+      valueFields: newFields,
     },
   })
 }

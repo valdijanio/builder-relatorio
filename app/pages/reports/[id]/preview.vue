@@ -76,6 +76,7 @@ const { authFetch } = useAuth()
 
 // Use the same canvas state as the editor
 const { elements: canvasElements } = useCanvas()
+const { datasets: canvasDatasets, loadDatasets, executeAllDatasets } = useDatasets()
 
 const reportId = computed(() => route.params.id as string)
 const reportTitle = ref('Relatório')
@@ -118,6 +119,11 @@ const loadReport = async () => {
   if (canvasElements.value && canvasElements.value.length > 0) {
     elements.value = canvasElements.value
 
+    // Execute all datasets to load data
+    if (canvasDatasets.value.length > 0) {
+      await executeAllDatasets()
+    }
+
     // If it's a saved report, also fetch the title
     if (reportId.value !== 'new') {
       try {
@@ -145,6 +151,12 @@ const loadReport = async () => {
         let layout = response.data.layout
         if (typeof layout === 'string') {
           layout = JSON.parse(layout)
+        }
+
+        // Load datasets first
+        if (layout?.datasets) {
+          loadDatasets(layout.datasets)
+          await executeAllDatasets()
         }
 
         if (layout?.bands?.[0]?.elements) {

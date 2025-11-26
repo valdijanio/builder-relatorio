@@ -16,20 +16,26 @@
       </div>
     </div>
 
-    <!-- Chart -->
-    <VChart
-      v-else-if="hasData"
-      :option="chartOption"
-      :autoresize="true"
-      class="w-full h-full"
-    />
+    <!-- Chart - Renderizar apenas no cliente -->
+    <ClientOnly v-else-if="hasData">
+      <VChart
+        :option="chartOption"
+        :autoresize="true"
+        class="w-full h-full"
+      />
+      <template #fallback>
+        <div class="w-full h-full flex items-center justify-center bg-surface-tertiary/50 rounded border border-surface-border">
+          <span class="text-text-muted">Carregando gráfico...</span>
+        </div>
+      </template>
+    </ClientOnly>
 
     <!-- Placeholder -->
     <div v-else class="w-full h-full flex items-center justify-center bg-surface-tertiary/50 rounded border border-surface-border">
       <div class="text-center text-text-muted">
         <div class="text-3xl mb-2">{{ chartIcon }}</div>
         <div class="text-sm font-medium">{{ chartTypeLabel }}</div>
-        <div class="text-xs mt-1">{{ element.properties.title || 'Configure a query SQL' }}</div>
+        <div class="text-xs mt-1">{{ element.properties.title || 'Selecione um dataset' }}</div>
       </div>
     </div>
   </div>
@@ -45,8 +51,29 @@ const props = defineProps<{
   previewMode?: boolean
 }>()
 
-const { executeQuery, isLoading, error } = useQueryExecutor()
-const chartData = ref<Record<string, unknown>[]>([])
+// Use datasets instead of direct query execution
+const {
+  getDatasetData,
+  isDatasetLoading,
+  getDatasetError,
+  executeDataset,
+} = useDatasets()
+
+// Computed values from dataset
+const chartData = computed(() => {
+  if (!props.element.dataBinding?.datasetId) return []
+  return getDatasetData(props.element.dataBinding.datasetId)
+})
+
+const isLoading = computed(() => {
+  if (!props.element.dataBinding?.datasetId) return false
+  return isDatasetLoading(props.element.dataBinding.datasetId)
+})
+
+const error = computed(() => {
+  if (!props.element.dataBinding?.datasetId) return null
+  return getDatasetError(props.element.dataBinding.datasetId)
+})
 
 const chartTypeLabel = computed(() => {
   const labels: Record<string, string> = {
@@ -70,13 +97,17 @@ const chartIcon = computed(() => {
   return icons[props.element.properties.chartType] || '📊'
 })
 
-const hasData = computed(() => chartData.value.length > 0)
+const hasData = computed(() => {
+  return chartData.value.length > 0 &&
+    props.element.dataBinding?.labelField &&
+    props.element.dataBinding?.valueFields?.length > 0
+})
 
 const chartOption = computed<EChartsOption>(() => {
   const { chartType, title, showLegend, legendPosition, colors, animation } = props.element.properties
-  const { labelField, valueFields } = props.element.dataSource
+  const { labelField, valueFields } = props.element.dataBinding || {}
 
-  if (!hasData.value || !labelField || valueFields.length === 0) {
+  if (!chartData.value.length || !labelField || !valueFields?.length) {
     return {}
   }
 
@@ -151,28 +182,12 @@ const chartOption = computed<EChartsOption>(() => {
   return option
 })
 
-// Load data when query changes
-const loadData = async () => {
-  const { sqlQuery } = props.element.dataSource
-  if (!sqlQuery) {
-    chartData.value = []
-    return
-  }
-
-  const result = await executeQuery(sqlQuery)
-  if (result) {
-    chartData.value = result.rows
-  } else {
-    chartData.value = []
-  }
-}
-
-// Watch for changes and reload
+// Auto-load dataset when in preview mode
 watch(
-  () => props.element.dataSource.sqlQuery,
-  () => {
-    if (props.previewMode !== false) {
-      loadData()
+  () => props.element.dataBinding?.datasetId,
+  async (datasetId) => {
+    if (props.previewMode !== false && datasetId && chartData.value.length === 0) {
+      await executeDataset(datasetId)
     }
   },
   { immediate: true }

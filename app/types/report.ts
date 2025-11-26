@@ -3,7 +3,31 @@
 export interface ReportLayout {
   version: string
   pageSettings: PageSettings
+  datasets: Dataset[]  // Datasets compartilhados
   bands: Band[]
+}
+
+// Dataset Types
+export interface Dataset {
+  id: string                    // Ex: "vendas_regiao"
+  name: string                  // Ex: "Vendas por Região"
+  sqlQuery: string              // A query SQL
+  parameters?: DatasetParameter[]
+  fields?: DatasetField[]       // Auto-detectado ou definido manualmente
+}
+
+export interface DatasetParameter {
+  name: string                  // Ex: "@mes"
+  type: 'string' | 'number' | 'date' | 'boolean'
+  label: string                 // Ex: "Mês de Referência"
+  defaultValue?: unknown
+  required: boolean
+}
+
+export interface DatasetField {
+  name: string                  // Nome da coluna
+  type: 'string' | 'number' | 'date' | 'boolean'
+  label?: string                // Label amigável
 }
 
 export interface PageSettings {
@@ -88,10 +112,10 @@ export interface NumberElement extends BaseElement {
     color: string
     textAlign: 'left' | 'center' | 'right'
   }
-  dataSource?: {
-    sqlQuery: string
-    field: string
-    aggregation?: 'sum' | 'avg' | 'count' | 'min' | 'max'
+  dataBinding?: {
+    datasetId: string           // Referência ao dataset
+    field: string               // Campo do dataset
+    aggregation?: 'sum' | 'avg' | 'count' | 'min' | 'max' | 'first'
   }
 }
 
@@ -116,9 +140,8 @@ export interface ListElement extends BaseElement {
     borderStyle: 'none' | 'horizontal' | 'vertical' | 'full'
     borderColor: string
   }
-  dataSource: {
-    sqlQuery: string
-    parameters?: QueryParameter[]
+  dataBinding: {
+    datasetId: string           // Referência ao dataset
     orderBy?: string
     limit?: number
   }
@@ -145,19 +168,16 @@ export interface ChartElement extends BaseElement {
     colors: string[]
     xAxis?: {
       label?: string
-      field: string
     }
     yAxis?: {
       label?: string
-      field: string
     }
     animation: boolean
   }
-  dataSource: {
-    sqlQuery: string
-    labelField: string
-    valueFields: string[]
-    parameters?: QueryParameter[]
+  dataBinding: {
+    datasetId: string           // Referência ao dataset
+    labelField: string          // Campo para labels (eixo X ou fatias)
+    valueFields: string[]       // Campos para valores (eixo Y ou valores)
   }
 }
 
@@ -225,8 +245,9 @@ export const defaultListElement: Omit<ListElement, 'id' | 'position'> = {
     borderStyle: 'horizontal',
     borderColor: '#e5e7eb',
   },
-  dataSource: {
-    sqlQuery: 'SELECT * FROM tabela LIMIT 10',
+  dataBinding: {
+    datasetId: '',
+    limit: 100,
   },
 }
 
@@ -241,10 +262,10 @@ export const defaultChartElement: Omit<ChartElement, 'id' | 'position'> = {
     colors: ['#d97706', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6'],
     animation: true,
   },
-  dataSource: {
-    sqlQuery: 'SELECT categoria, SUM(valor) as total FROM tabela GROUP BY categoria',
-    labelField: 'categoria',
-    valueFields: ['total'],
+  dataBinding: {
+    datasetId: '',
+    labelField: '',
+    valueFields: [],
   },
 }
 

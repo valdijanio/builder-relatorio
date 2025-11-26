@@ -26,6 +26,7 @@ const route = useRoute()
 const router = useRouter()
 const { authFetch } = useAuth()
 const { elements, loadElements, clearCanvas } = useCanvas()
+const { datasets, loadDatasets, clearDatasets } = useDatasets()
 
 const reportId = computed(() => route.params.id as string)
 const isNewReport = computed(() => reportId.value === 'new')
@@ -36,6 +37,7 @@ const reportDescription = ref('')
 const loadReport = async () => {
   if (isNewReport.value) {
     clearCanvas()
+    clearDatasets()
     return
   }
 
@@ -52,6 +54,12 @@ const loadReport = async () => {
       }
 
       console.log('Layout carregado:', layout)
+
+      // Load datasets from layout
+      if (layout?.datasets) {
+        console.log('Datasets encontrados:', layout.datasets.length)
+        loadDatasets(layout.datasets)
+      }
 
       // Load elements from layout
       if (layout?.bands?.[0]?.elements) {
@@ -78,6 +86,7 @@ const saveReport = async () => {
       margins: { top: 20, right: 15, bottom: 20, left: 15 },
       backgroundColor: '#ffffff',
     },
+    datasets: datasets.value,  // Include datasets in layout
     bands: [
       {
         id: 'detail-1',
