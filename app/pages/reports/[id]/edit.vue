@@ -111,8 +111,8 @@ const saveReport = async () => {
 }
 
 const previewReport = () => {
-  // TODO: Implement preview
-  alert('Preview será implementado em breve')
+  // Navigate to preview page
+  router.push(`/reports/${reportId.value}/preview`)
 }
 
 const onDragStart = () => {

@@ -1,0 +1,158 @@
+<template>
+  <div class="min-h-screen bg-canvas-bg">
+    <!-- Header -->
+    <header class="h-12 bg-white border-b border-surface-border flex items-center px-4 sticky top-0 z-10">
+      <NuxtLink
+        :to="`/reports/${reportId}/edit`"
+        class="flex items-center gap-2 text-text-secondary hover:text-accent transition-colors"
+      >
+        <span>←</span>
+        <span>Voltar ao Editor</span>
+      </NuxtLink>
+
+      <div class="flex-1 text-center">
+        <span class="font-medium text-text-primary">{{ reportTitle }}</span>
+        <span class="text-text-muted ml-2">- Preview</span>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button class="btn-secondary text-sm" @click="printReport">
+          Imprimir
+        </button>
+      </div>
+    </header>
+
+    <!-- Preview Canvas -->
+    <div class="flex justify-center p-8">
+      <div
+        class="bg-white shadow-lg relative"
+        :style="canvasStyle"
+      >
+        <!-- Elements -->
+        <div
+          v-for="element in elements"
+          :key="element.id"
+          class="absolute"
+          :style="getElementStyle(element)"
+        >
+          <component
+            :is="getElementComponent(element.type)"
+            :element="element"
+            :preview-mode="true"
+          />
+        </div>
+
+        <!-- Empty state -->
+        <div
+          v-if="elements.length === 0"
+          class="absolute inset-0 flex items-center justify-center text-text-muted"
+        >
+          <div class="text-center">
+            <div class="text-4xl mb-2">📄</div>
+            <div>Relatório vazio</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import type { ReportLayout, ReportElement, ElementType } from '~/types/report'
+
+definePageMeta({
+  layout: false,
+  middleware: 'auth',
+})
+
+const route = useRoute()
+const { authFetch } = useAuth()
+
+const reportId = computed(() => route.params.id as string)
+const reportTitle = ref('Relatório')
+const elements = ref<ReportElement[]>([])
+const pageSettings = ref({
+  width: 794,
+  height: 1123,
+})
+
+// A4 dimensions in pixels at 96 DPI
+const canvasStyle = computed(() => ({
+  width: `${pageSettings.value.width}px`,
+  minHeight: `${pageSettings.value.height}px`,
+}))
+
+const getElementStyle = (element: ReportElement) => ({
+  left: `${element.position.x}px`,
+  top: `${element.position.y}px`,
+  width: `${element.size.width}px`,
+  height: `${element.size.height}px`,
+})
+
+const getElementComponent = (type: ElementType) => {
+  switch (type) {
+    case 'text':
+      return resolveComponent('ReportElementsTextElement')
+    case 'number':
+      return resolveComponent('ReportElementsNumberElement')
+    case 'list':
+      return resolveComponent('ReportElementsListElement')
+    case 'chart':
+      return resolveComponent('ReportElementsChartElement')
+    default:
+      return 'div'
+  }
+}
+
+const loadReport = async () => {
+  // Check if it's a new report with unsaved data
+  if (reportId.value === 'new') {
+    // Load from canvas state (shared via useState)
+    const canvasElements = useState<ReportElement[]>('canvas-elements')
+    if (canvasElements.value) {
+      elements.value = canvasElements.value
+    }
+    reportTitle.value = 'Novo Relatório'
+    return
+  }
+
+  try {
+    const response = await authFetch<{ success: boolean; data: any }>(`/api/reports/${reportId.value}`)
+    if (response.success && response.data) {
+      reportTitle.value = response.data.title
+
+      const layout = response.data.layout as ReportLayout
+      if (layout?.bands?.[0]?.elements) {
+        elements.value = layout.bands[0].elements
+      }
+    }
+  } catch (error) {
+    console.error('Error loading report:', error)
+  }
+}
+
+const printReport = () => {
+  window.print()
+}
+
+onMounted(() => {
+  loadReport()
+})
+</script>
+
+<style>
+@media print {
+  header {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+  }
+
+  .bg-canvas-bg {
+    background: white !important;
+    padding: 0 !important;
+  }
+}
+</style>

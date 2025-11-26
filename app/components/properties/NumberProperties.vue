@@ -147,6 +147,48 @@
             @input="updateDataSource('field', ($event.target as HTMLInputElement).value)"
           />
         </div>
+        <button
+          class="btn-secondary text-sm w-full flex items-center justify-center gap-2"
+          :disabled="isLoading || !element.dataSource?.sqlQuery"
+          @click="testQuery"
+        >
+          <span v-if="isLoading" class="animate-spin">⏳</span>
+          <span v-else>▶</span>
+          {{ isLoading ? 'Executando...' : 'Testar Query' }}
+        </button>
+
+        <!-- Query Result Preview -->
+        <div v-if="queryError" class="mt-3 p-3 bg-red-50 border border-red-200 rounded text-sm text-status-error">
+          <div class="font-medium mb-1">Erro na query:</div>
+          <div class="font-mono text-xs">{{ queryError }}</div>
+        </div>
+
+        <div v-if="queryResult && !queryError" class="mt-3 p-3 bg-green-50 border border-green-200 rounded">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-text-muted">
+              Resultado em {{ queryResult.executionTimeMs }}ms
+            </span>
+            <button class="text-xs text-accent hover:underline" @click="clearResult">
+              Limpar
+            </button>
+          </div>
+          <div v-if="queryResult.rows.length > 0" class="text-sm">
+            <div class="font-medium text-text-primary">Campos disponíveis:</div>
+            <div class="flex flex-wrap gap-1 mt-1">
+              <span
+                v-for="col in queryResult.columns"
+                :key="col"
+                class="px-2 py-0.5 bg-white rounded border border-surface-border text-xs cursor-pointer hover:border-accent"
+                @click="updateDataSource('field', col)"
+              >
+                {{ col }}: {{ queryResult.rows[0][col] }}
+              </span>
+            </div>
+            <div class="text-xs text-text-muted mt-2">
+              Clique em um campo para selecioná-lo
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -154,6 +196,7 @@
 
 <script setup lang="ts">
 import type { NumberElement } from '~/types/report'
+import type { QueryResult } from '~/types/elements'
 
 const props = defineProps<{
   element: NumberElement
@@ -162,6 +205,23 @@ const props = defineProps<{
 const emit = defineEmits<{
   update: [updates: Partial<NumberElement>]
 }>()
+
+// Query executor
+const { executeQuery, isLoading, error: queryError } = useQueryExecutor()
+const queryResult = ref<QueryResult | null>(null)
+
+const clearResult = () => {
+  queryResult.value = null
+}
+
+const testQuery = async () => {
+  if (!props.element.dataSource?.sqlQuery) return
+  queryResult.value = null
+  const result = await executeQuery(props.element.dataSource.sqlQuery)
+  if (result) {
+    queryResult.value = result
+  }
+}
 
 const updateProperty = (key: keyof NumberElement['properties'], value: any) => {
   emit('update', {

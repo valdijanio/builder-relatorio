@@ -14,9 +14,65 @@
             @input="updateDataSource('sqlQuery', ($event.target as HTMLTextAreaElement).value)"
           />
         </div>
-        <button class="btn-secondary text-sm w-full" @click="testQuery">
-          Testar Query
+        <button
+          class="btn-secondary text-sm w-full flex items-center justify-center gap-2"
+          :disabled="isLoading || !element.dataSource.sqlQuery"
+          @click="testQuery"
+        >
+          <span v-if="isLoading" class="animate-spin">⏳</span>
+          <span v-else>▶</span>
+          {{ isLoading ? 'Executando...' : 'Testar Query' }}
         </button>
+
+        <!-- Query Result Preview -->
+        <div v-if="queryError" class="mt-3 p-3 bg-red-50 border border-red-200 rounded text-sm text-status-error">
+          <div class="font-medium mb-1">Erro na query:</div>
+          <div class="font-mono text-xs">{{ queryError }}</div>
+        </div>
+
+        <div v-if="queryResult && !queryError" class="mt-3">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-text-muted">
+              {{ queryResult.rowCount }} registro(s) em {{ queryResult.executionTimeMs }}ms
+            </span>
+            <button class="text-xs text-accent hover:underline" @click="clearResult">
+              Limpar
+            </button>
+          </div>
+          <div class="max-h-48 overflow-auto border border-surface-border rounded">
+            <table class="w-full text-xs">
+              <thead class="bg-surface-secondary sticky top-0">
+                <tr>
+                  <th
+                    v-for="col in queryResult.columns"
+                    :key="col"
+                    class="px-2 py-1 text-left font-medium text-text-secondary border-b border-surface-border"
+                  >
+                    {{ col }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="(row, idx) in queryResult.rows.slice(0, 10)"
+                  :key="idx"
+                  class="border-b border-surface-border last:border-0"
+                >
+                  <td
+                    v-for="col in queryResult.columns"
+                    :key="col"
+                    class="px-2 py-1 text-text-primary"
+                  >
+                    {{ row[col] ?? '-' }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-if="queryResult.rowCount > 10" class="p-2 text-center text-xs text-text-muted bg-surface-secondary">
+              Mostrando 10 de {{ queryResult.rowCount }} registros
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -128,6 +184,7 @@
 <script setup lang="ts">
 import { v4 as uuidv4 } from 'uuid'
 import type { ListElement, TableColumn } from '~/types/report'
+import type { QueryResult } from '~/types/elements'
 
 const props = defineProps<{
   element: ListElement
@@ -136,6 +193,14 @@ const props = defineProps<{
 const emit = defineEmits<{
   update: [updates: Partial<ListElement>]
 }>()
+
+// Query executor
+const { executeQuery, isLoading, error: queryError } = useQueryExecutor()
+const queryResult = ref<QueryResult | null>(null)
+
+const clearResult = () => {
+  queryResult.value = null
+}
 
 const updateProperty = (key: keyof ListElement['properties'], value: any) => {
   emit('update', {
@@ -218,8 +283,12 @@ const updateColumn = (index: number, key: keyof TableColumn, value: any) => {
   })
 }
 
-const testQuery = () => {
-  // TODO: Implement query testing
-  alert('Funcionalidade de teste de query será implementada')
+const testQuery = async () => {
+  if (!props.element.dataSource.sqlQuery) return
+  queryResult.value = null
+  const result = await executeQuery(props.element.dataSource.sqlQuery)
+  if (result) {
+    queryResult.value = result
+  }
 }
 </script>
